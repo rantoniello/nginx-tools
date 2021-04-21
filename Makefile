@@ -27,9 +27,9 @@ CPPFLAGS = -Wall -O3 -fPIC -I$(INCLUDEDIR) -DPROJECT_DIR=\"$(PROJECT_DIR)\" -DPR
 CPP = c++
 LDLIBS = -lm -ldl
 
-.PHONY: all clean .foldertree nginx curl openssl
+.PHONY: all clean .foldertree nginx curl openssl json-c
 
-all: nginx
+all: test-rate-limiting
 
 clean: .nginx_clean
 	@rm -rf $(BUILD_DIR)
@@ -43,16 +43,41 @@ clean: .nginx_clean
 	@mkdir -p $(BINDIR)
 	@mkdir -p $(PREFIX)/etc
 	@mkdir -p $(PREFIX)/certs
+	@mkdir -p $(PREFIX)/tmp
 
 ##############################################################################
 # Rule for 'test-rate-limiting' program
 ##############################################################################
 
-test-rate-limiting: nginx curl
+test-rate-limiting: nginx json-c utils gnuplot
 	@$(MAKE) test-rate-limiting-generic-build-install --no-print-directory \
-SRCDIRS=$(PROJECT_DIR)/test-rate-limiting _BUILD_DIR=$(BUILD_DIR)/$@ TARGETFILE=$(BUILD_DIR)/$@/$@.bin \
+SRCDIRS=$(PROJECT_DIR)/src/apps/test-rate-limiting \
+_BUILD_DIR=$(BUILD_DIR)/$@ \
+TARGETFILE=$(BUILD_DIR)/$@/$@.bin \
+DESTFILE='$(BINDIR)/$@' \
 CXXFLAGS='$(CPPFLAGS) -std=c++11' CFLAGS='$(CPPFLAGS)' \
-LDFLAGS+='-L$(LIBDIR)' LDLIBS+='-lpthread -lssl -lcrypto' || exit 1
+LDFLAGS+='-L$(LIBDIR)' LDLIBS+='-lpthread -lssl -lcrypto -lcurl -ljson-c -lutils' || exit 1
+
+##############################################################################
+# Rule for 'utils' library
+##############################################################################
+
+LIBUTILS_CPPFLAGS = $(CPPFLAGS) -Bdynamic -shared
+LIBUTILS_CFLAGS = $(LIBUTILS_CPPFLAGS)
+LIBUTILS_CXXFLAGS = $(LIBUTILS_CPPFLAGS) -std=c++11
+LIBUTILS_SRCDIRS = $(PROJECT_DIR)/src/libs/utils
+LIBUTILS_HDRFILES = $(wildcard $(PROJECT_DIR)/src/libs/utils/*.h)
+
+utils: | .foldertree curl
+	@$(MAKE) utils-generic-build-install --no-print-directory \
+SRCDIRS='$(LIBUTILS_SRCDIRS)' \
+_BUILD_DIR='$(BUILD_DIR)/$@' \
+TARGETFILE='$(BUILD_DIR)/$@/lib$@.so' \
+DESTFILE='$(LIBDIR)/lib$@.so' \
+INCLUDEFILES='$(LIBUTILS_HDRFILES)' \
+CFLAGS='$(LIBUTILS_CFLAGS)' \
+CXXFLAGS='$(LIBUTILS_CXXFLAGS)' \
+LDFLAGS+='-L$(LIBDIR)' LDLIBS+='-lpthread -lcurl'|| exit 1
 
 ##############################################################################
 # Rule for 'OpenSSL' library and apps.
@@ -81,6 +106,40 @@ curl: | .foldertree
 	@if [ ! -f "$(_BUILD_DIR)"/Makefile ] ; then \
 		echo "Configuring $@..."; \
 		cd "$(_BUILD_DIR)" && "$(CURL_SRCDIRS)"/configure --prefix="$(PREFIX)" --srcdir="$(CURL_SRCDIRS)" \
+--enable-static=no || exit 1; \
+	fi
+	@$(MAKE) -C "$(_BUILD_DIR)" install || exit 1
+
+##############################################################################
+# Rule for 'json-c' library
+##############################################################################
+
+JSONC_SRCDIRS = $(PROJECT_DIR)/3rdplibs/json-c
+.ONESHELL:
+json-c: | .foldertree
+	@$(eval _BUILD_DIR := $(BUILD_DIR)/$@)
+	@mkdir -p "$(_BUILD_DIR)"
+	@if [ ! -f "$(_BUILD_DIR)"/Makefile ] ; then \
+		echo "Configuring $@..."; \
+		cd "$(_BUILD_DIR)" && "$(JSONC_SRCDIRS)"/configure --prefix="$(PREFIX)" --srcdir="$(JSONC_SRCDIRS)" \
+--enable-static=no || exit 1; \
+	fi
+	@$(MAKE) -C "$(_BUILD_DIR)" install || exit 1
+
+##############################################################################
+# Rule for 'gnuplot' library
+##############################################################################
+
+GNUPLOT_SRCDIRS = $(PROJECT_DIR)/3rdplibs/gnuplot
+.ONESHELL:
+gnuplot: | .foldertree
+	@$(eval _BUILD_DIR := $(BUILD_DIR)/$@)
+	@mkdir -p "$(_BUILD_DIR)"
+	@if [ ! -f "$(_BUILD_DIR)"/Makefile ] ; then \
+		echo "Auto configuring $@..."; \
+		cd "$(JSONC_SRCDIRS)" && ./autogen.sh || exit 1; \
+		echo "Configuring $@..."; \
+		cd "$(_BUILD_DIR)" && "$(GNUPLOT_SRCDIRS)"/configure --prefix="$(PREFIX)" --srcdir="$(GNUPLOT_SRCDIRS)" \
 --enable-static=no || exit 1; \
 	fi
 	@$(MAKE) -C "$(_BUILD_DIR)" install || exit 1
@@ -116,6 +175,7 @@ nginx: | .foldertree openssl
  --with-http_degradation_module\
  --with-http_slice_module\
  --with-http_stub_status_module\
+ --add-module=$(PROJECT_DIR)/3rdplibs/nginx-module-vts-master\
  || exit 1; \
 	fi
 	@$(MAKE) -C "$(NGINX_SRCDIRS)" install || exit 1
@@ -134,14 +194,11 @@ nginx: | .foldertree openssl
 
 %-generic-build-install: %-generic-build-source-compile
 	@echo Installing target "$(TARGETFILE)" to "$(DESTFILE)";
-	@echo ====================================2
 	@if [ ! -z "$(INCLUDEFILES)" ] ; then\
 		mkdir -p $(INCLUDEDIR)/$*;\
 		cp -f $(INCLUDEFILES) $(INCLUDEDIR)/$*/;\
 	fi
-	@echo ====================================3
 	cp -f $(TARGETFILE) $(DESTFILE) || exit 1
-	@echo ====================================4
 
 find_cfiles = $(wildcard $(shell realpath --relative-to=$(PROJECT_DIR) $(dir)/*.c))
 find_cppfiles = $(wildcard $(shell realpath --relative-to=$(PROJECT_DIR) $(dir)/*.cpp))
