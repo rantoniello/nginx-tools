@@ -14,6 +14,107 @@
 #include "ngx_http_upstream_check_module.h"
 #endif
 
+#define LIMITREQ_STATS_WORKAROUND
+#ifdef LIMITREQ_STATS_WORKAROUND
+//RAL: TRICK // see 'nginx/src/http/modules/ngx_http_limit_req_module.c'
+
+typedef struct {
+    u_char                       color;
+    u_char                       dummy;
+    u_short                      len;
+    ngx_queue_t                  queue;
+    ngx_msec_t                   last;
+    /* integer value, 1 corresponds to 0.001 r/s */
+    ngx_uint_t                   excess;
+    ngx_uint_t                   count;
+    u_char                       data[1];
+} ngx_http_limit_req_node_t;
+
+
+typedef struct {
+    ngx_rbtree_t                  rbtree;
+    ngx_rbtree_node_t             sentinel;
+    ngx_queue_t                   queue;
+} ngx_http_limit_req_shctx_t;
+
+
+typedef struct {
+    ngx_http_limit_req_shctx_t  *sh;
+    ngx_slab_pool_t             *shpool;
+    /* integer value, 1 corresponds to 0.001 r/s */
+    ngx_uint_t                   rate;
+    ngx_http_complex_value_t     key;
+    ngx_http_limit_req_node_t   *node;
+} ngx_http_limit_req_ctx_t;
+
+
+typedef struct {
+    ngx_shm_zone_t              *shm_zone;
+    /* integer value, 1 corresponds to 0.001 r/s */
+    ngx_uint_t                   burst;
+    ngx_uint_t                   delay;
+} ngx_http_limit_req_limit_t;
+
+
+typedef struct {
+    ngx_array_t                  limits;
+    ngx_uint_t                   limit_log_level;
+    ngx_uint_t                   delay_log_level;
+    ngx_uint_t                   status_code;
+    ngx_flag_t                   dry_run;
+} ngx_http_limit_req_conf_t;
+
+extern ngx_module_t ngx_http_limit_req_module;
+static volatile ngx_http_limit_req_conf_t *_limit_req_stats_lrcf = NULL;
+
+int _limit_req_stats_init(ngx_conf_t *cf)
+{
+    ngx_http_limit_req_conf_t *lrcf;
+    lrcf = ngx_http_conf_get_module_loc_conf(cf, ngx_http_limit_req_module);
+    if (lrcf && lrcf->limits.nelts)
+        _limit_req_stats_lrcf = lrcf;
+    return 0;
+}
+
+int _limit_req_stats_get()
+{
+    ngx_http_limit_req_limit_t  *limit, *limits;
+    ngx_uint_t n;
+    int excess = 0;
+
+    if (_limit_req_stats_lrcf) {
+        limits = _limit_req_stats_lrcf->limits.elts;
+        for (n = 0; n < _limit_req_stats_lrcf->limits.nelts; n++) {
+
+            limit = &limits[n];
+
+            ngx_http_limit_req_ctx_t *ctx;
+            ctx = limit->shm_zone->data;
+
+            ngx_rbtree_node_t *node;
+            node = ctx->sh->rbtree.root;
+
+            ngx_http_limit_req_node_t  *lr;
+            lr = (ngx_http_limit_req_node_t *) &node->color;
+
+            int64_t now;
+            int64_t ms;
+
+            now = ngx_current_msec;
+            ms = (ngx_msec_int_t) (now - lr->last);
+            int64_t val1 = (int64_t)lr->excess;
+            int64_t val2 = (int64_t)((ctx->rate * ms)/1000);
+            if(val1 > val2)
+            {
+                excess = (val1 - val2 + 1000)/1000;
+            }
+            if(excess < 0) excess = 0;
+        }
+    }
+    return excess;
+}
+
+#endif
 
 u_char *
 ngx_http_vhost_traffic_status_display_set_main(ngx_http_request_t *r,
@@ -42,14 +143,17 @@ ngx_http_vhost_traffic_status_display_set_main(ngx_http_request_t *r,
 
     buf = ngx_sprintf(buf, NGX_HTTP_VHOST_TRAFFIC_STATUS_JSON_FMT_MAIN, &ngx_cycle->hostname,
                       NGX_HTTP_VTS_MODULE_VERSION, NGINX_VERSION, vtscf->start_msec,
+#ifdef LIMITREQ_STATS_WORKAROUND
+                      _limit_req_stats_get(),
+#else
                       ngx_http_vhost_traffic_status_current_msec(),
+#endif
                       ac, rd, wr, wa, ap, hn, rq,
                       shm_info->name, shm_info->max_size,
                       shm_info->used_size, shm_info->used_node);
 
     return buf;
 }
-
 
 u_char *
 ngx_http_vhost_traffic_status_display_set_server_node(

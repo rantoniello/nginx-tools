@@ -244,7 +244,6 @@ ngx_module_t ngx_http_vhost_traffic_status_module = {
     NGX_MODULE_V1_PADDING
 };
 
-
 static ngx_int_t
 ngx_http_vhost_traffic_status_handler(ngx_http_request_t *r)
 {
@@ -716,6 +715,10 @@ ngx_http_vhost_traffic_status_preconfiguration(ngx_conf_t *cf)
     return ngx_http_vhost_traffic_status_add_variables(cf);
 }
 
+#define LIMITREQ_STATS_WORKAROUND
+#ifdef LIMITREQ_STATS_WORKAROUND
+extern int _limit_req_stats_init(ngx_conf_t *cf);
+#endif
 
 static ngx_int_t
 ngx_http_vhost_traffic_status_init(ngx_conf_t *cf)
@@ -1029,6 +1032,10 @@ ngx_http_vhost_traffic_status_merge_loc_conf(ngx_conf_t *cf, void *parent, void 
 
     conf->shm_zone = shm_zone;
     conf->shm_name = name;
+
+#ifdef LIMITREQ_STATS_WORKAROUND
+    _limit_req_stats_init(cf);
+#endif
 
     return NGX_CONF_OK;
 }
