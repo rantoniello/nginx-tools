@@ -1,0 +1,7 @@
+[program:nginx-prometheus-logexporter]
+command=/opt/nginx/prometheus-nginxlog-exporter-1.9.0/prometheus-nginxlog-exporter -config-file /opt/nginx/nginxlog_exporter.yml
+process_name=%(program_name)s_%(process_num)02d
+autostart=true
+autorestart=true
+#user=root
+redirect_stderr=true

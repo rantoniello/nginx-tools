@@ -1,0 +1,7 @@
+[program:nginx]
+command=/opt/nginx/_install_dir/sbin/nginx -c /opt/nginx/nginx.conf
+process_name=%(program_name)s_%(process_num)02d
+autostart=true
+autorestart=true
+#user=root
+redirect_stderr=true

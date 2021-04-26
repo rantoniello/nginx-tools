@@ -1,0 +1,41 @@
+daemon off;
+#user nginx nginx;
+worker_processes 1;
+error_log /opt/nginx/_install_dir/logs/error.log error;
+events {
+    worker_connections 512;
+}
+pid /opt/nginx/_install_dir/var/run/nginx.pid;
+
+http {
+    include /opt/nginx/nginx_mime.types;
+
+    log_format stats-log '$msec, $status';
+    access_log /opt/nginx/_install_dir/logs/access.log stats-log;
+
+    vhost_traffic_status_zone;
+
+    # 'Origin-1' server
+    server {
+        listen 0.0.0.0:8880;
+        server_name  Origin_1;
+        location ~ ^/vts_status/format/(json|html|prometheus) {
+            vhost_traffic_status_display;
+        }
+        location = /basic_status {
+            stub_status;
+        }
+        location ~ /(.*) {
+            return 200 "Server 'Origin-1' received HTTP request";
+        }
+    }
+    server {
+        listen 0.0.0.0:9114;
+        server_name nginx-vts-prometheus;
+        location / {
+            vhost_traffic_status_display;
+            vhost_traffic_status_display_format prometheus;
+        }
+    }
+}
+

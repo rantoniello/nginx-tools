@@ -1,0 +1,20 @@
+listen:
+  port: 9115
+  address: "0.0.0.0"
+
+consul:
+  enable: false
+
+namespaces:
+  - name: myapp
+#    format: "$remote_addr - $remote_user [$time_local] \"$request\" $status $body_bytes_sent \"$http_referer\" \"$http_user_agent\" \"$http_x_forwarded_for\""
+    format: "$msec, $status"
+    source:
+      files:
+        - /opt/nginx/_install_dir/logs/access.log
+    labels:
+      service: "myapp"
+      environment: "production"
+      hostname: "myapp.example.com"
+    histogram_buckets: [.005, .01, .025, .05, .1, .25, .5, 1, 2.5, 5, 10]
+
