@@ -32,9 +32,27 @@ scrape_configs:
     scrape_interval: 15s
     static_configs:
       - targets: ['127.0.0.1:9113']
-
-  - job_name: 'nginx-2'
+  - job_name: 'nginx-11'
     scrape_interval: 15s
     static_configs:
-      - targets: ['127.0.0.1:9114']
+      - targets: ['127.0.0.1:9123']
+#    relabel_configs:
+#      - source_labels: [__address__]
+#        target_label: instance
+#        regex: '([^:]+)(:[0-9]+)?'
+#        replacement: '${1}'
 
+  - job_name: 'nginx-2-1'
+    scrape_interval: 15s
+    static_configs:
+      - targets: ['127.0.0.1:8800']
+      
+  - job_name: 'nginx-2-2'
+    scrape_interval: 15s
+    static_configs:
+      - targets: ['127.0.0.1:8801']
+
+  - job_name: 'nginx-2-3'
+    scrape_interval: 15s
+    static_configs:
+      - targets: ['127.0.0.1:8802']

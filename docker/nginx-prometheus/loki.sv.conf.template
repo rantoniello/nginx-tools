@@ -1,0 +1,7 @@
+[program:loki]
+command=/opt/loki/loki-2.2.1/cmd/loki/loki -config.file=/opt/loki/loki-local-config.yaml
+process_name=%(program_name)s_%(process_num)02d
+autostart=true
+autorestart=true
+#user=root
+redirect_stderr=true

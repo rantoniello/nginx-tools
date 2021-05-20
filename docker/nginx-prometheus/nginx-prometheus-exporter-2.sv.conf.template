@@ -1,0 +1,7 @@
+[program:nginx-prometheus-exporter-2]
+command=/usr/bin/bash -c "(export LISTEN_ADDRESS=:9123; /opt/nginx/nginx-prometheus-exporter-0.9.0/nginx-prometheus-exporter -nginx.scrape-uri=http://localhost:8801/basic_status)"
+process_name=%(program_name)s_%(process_num)02d
+autostart=true
+autorestart=true
+#user=root
+redirect_stderr=true

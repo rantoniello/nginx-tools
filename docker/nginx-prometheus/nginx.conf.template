@@ -10,32 +10,137 @@ pid /opt/nginx/_install_dir/var/run/nginx.pid;
 http {
     include /opt/nginx/nginx_mime.types;
 
-    log_format stats-log '$msec, $status';
-    access_log /opt/nginx/_install_dir/logs/access.log stats-log;
+    upstream backend0 {
+        server localhost:8880;
+    }
+    upstream backend1 {
+        server localhost:8880;
+        server localhost:8881;
+    }
+    
+    log_format json_analytics escape=json '{'
+                            '"msec": "$msec", ' # request unixtime in seconds with a milliseconds resolution
+                            '"connection": "$connection", ' # connection serial number
+                            '"connection_requests": "$connection_requests", ' # number of requests made in connection
+                    '"pid": "$pid", ' # process pid
+                    '"request_id": "$request_id", ' # the unique request id
+                    '"request_length": "$request_length", ' # request length (including headers and body)
+                    '"remote_addr": "$remote_addr", ' # client IP
+                    '"remote_user": "$remote_user", ' # client HTTP username
+                    '"remote_port": "$remote_port", ' # client port
+                    '"time_local": "$time_local", '
+                    '"time_iso8601": "$time_iso8601", ' # local time in the ISO 8601 standard format
+                    '"request": "$request", ' # full path no arguments if the request
+                    '"request_uri": "$request_uri", ' # full path and arguments if the request
+                    '"args": "$args", ' # args
+                    '"status": "$status", ' # response status code
+                    '"body_bytes_sent": "$body_bytes_sent", ' # the number of body bytes exclude headers sent to a client
+                    '"bytes_sent": "$bytes_sent", ' # the number of bytes sent to a client
+                    '"http_referer": "$http_referer", ' # HTTP referer
+                    '"http_user_agent": "$http_user_agent", ' # user agent
+                    '"http_x_forwarded_for": "$http_x_forwarded_for", ' # http_x_forwarded_for
+                    '"http_host": "$http_host", ' # the request Host: header
+                    '"server_name": "$server_name", ' # the name of the vhost serving the request
+                    '"request_time": "$request_time", ' # request processing time in seconds with msec resolution
+                    '"upstream": "$upstream_addr", ' # upstream backend server for proxied requests
+                    '"upstream_connect_time": "$upstream_connect_time", ' # upstream handshake time incl. TLS
+                    '"upstream_header_time": "$upstream_header_time", ' # time spent receiving upstream headers
+                    '"upstream_response_time": "$upstream_response_time", ' # time spend receiving upstream body
+                    '"upstream_response_length": "$upstream_response_length", ' # upstream response length
+                    '"upstream_cache_status": "$upstream_cache_status", ' # cache HIT/MISS where applicable
+                    '"ssl_protocol": "$ssl_protocol", ' # TLS protocol
+                    '"ssl_cipher": "$ssl_cipher", ' # TLS cipher
+                    '"scheme": "$scheme", ' # http or https
+                    '"request_method": "$request_method", ' # request method
+                    '"server_protocol": "$server_protocol", ' # request protocol, like HTTP/1.1 or HTTP/2.0
+                    '"pipe": "$pipe", ' # "p" if request was pipelined, "." otherwise
+                    '"gzip_ratio": "$gzip_ratio", '
+                    '"http_cf_ray": "$http_cf_ray",'
+                    '"geoip_country_code": "$geoip_country_code"'
+                    '}';
+    access_log /opt/nginx/_install_dir/logs/access.log json_analytics;
 
     vhost_traffic_status_zone;
+    
+    geoip_country /usr/share/GeoIP/GeoIP.dat;
+    geoip_city /opt/nginx/GeoLiteCity.dat;
 
-    # 'Origin-1' server
     server {
         listen 0.0.0.0:8880;
-        server_name  Origin_1;
-        location ~ ^/vts_status/format/(json|html|prometheus) {
-            vhost_traffic_status_display;
-        }
-        location = /basic_status {
-            stub_status;
-        }
+        server_name  Origin_0;
+        access_log off;
+
         location ~ /(.*) {
-            return 200 "Server 'Origin-1' received HTTP request";
+            echo_sleep 0.1;
+            echo "Server 'Origin-0' received HTTP request; response delayed 0.1 secs.";
         }
     }
     server {
-        listen 0.0.0.0:9114;
-        server_name nginx-vts-prometheus;
+        listen 0.0.0.0:8881;
+        server_name  Origin_1;
+        access_log off;
+
+        location ~ /(.*) {
+            echo_sleep 1.0;
+            echo "Server 'Origin-1' received HTTP request; response delayed 0.5 secs.";
+        }
+    }
+    server {
+        listen 0.0.0.0:8800;
+        server_name Proxy_0;
+        location /test-path {
+            proxy_pass http://backend0;
+        }
         location / {
             vhost_traffic_status_display;
             vhost_traffic_status_display_format prometheus;
         }
+        location = /basic_status {
+            stub_status;
+        }
+        location = /1xx {
+            return 199;
+        }
+        location = /3xx {
+            return 306;
+        }
+        location = /4xx {
+            return 404;
+        }
+        location = /5xx {
+            return 500;
+        }
+    }
+    server {
+        listen 0.0.0.0:8801;
+        server_name Proxy_1;
+        location /test-path {
+            proxy_pass http://backend1;
+        }
+        location / {
+            vhost_traffic_status_display;
+            vhost_traffic_status_display_format prometheus;
+        }
+        location = /basic_status {
+            stub_status;
+        }
+    }
+    server {
+        listen 0.0.0.0:8802;
+        server_name Proxy_2;
+        location /test-path2 {
+            proxy_pass http://backend1;
+        }
+        location /test-path {
+            echo_sleep 1;
+            echo_location /test-path2;
+        }
+        location / {
+            vhost_traffic_status_display;
+            vhost_traffic_status_display_format prometheus;
+        }
+        location = /basic_status {
+            stub_status;
+        }
     }
 }
-

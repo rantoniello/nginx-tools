@@ -1,0 +1,7 @@
+[program:grafana]
+command=/usr/sbin/grafana-server --config=/etc/grafana/grafana.ini --pidfile=/var/run/grafana-server.pid --homepath /usr/share/grafana --packaging=deb cfg:default.paths.logs=/var/log/grafana cfg:default.paths.data=/var/lib/grafana cfg:default.paths.plugins=/var/lib/grafana/plugins cfg:default.paths.provisioning=/etc/grafana/provisioning web
+process_name=%(program_name)s_%(process_num)02d
+autostart=true
+autorestart=true
+#user=root
+redirect_stderr=true

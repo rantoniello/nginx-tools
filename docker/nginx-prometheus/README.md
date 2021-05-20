@@ -1,6 +1,6 @@
 
 To build docker execute:
-```
+```bash
 $ docker build -t nginx-prometheus .
 ```
 
