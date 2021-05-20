@@ -175,6 +175,7 @@ nginx: | .foldertree openssl
  --with-http_degradation_module\
  --with-http_slice_module\
  --with-http_stub_status_module\
+ --add-module=$(PROJECT_DIR)/3rdplibs/echo-nginx-module-0.62\
  --add-module=$(PROJECT_DIR)/3rdplibs/nginx-module-vts-master\
  || exit 1; \
 	fi

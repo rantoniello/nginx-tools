@@ -174,7 +174,23 @@ static setting_ctx_s settings[] = {
                             LOG_CTX_GET());
 
                 },
-                .title = "setting__1",
+                .title = "setting-1",
+                .description = ""
+                        "Sequence: req-burst=40, wait end",
+                .rpszone_size = "10m",
+                .rps_limit = "10",
+                .reqburst = "burst=20",
+                .burstdelay = "delay=10"
+        },
+        {
+                .fxn = [](const setting_ctx_t *setting_ctx,
+                        utils_logs_ctx_t *const __utils_logs_ctx) -> void {
+
+                    http_get_nginx("/test-path/slow-reply", "any", nullptr, 40,
+                            LOG_CTX_GET());
+
+                },
+                .title = "setting-1-delayed1sec",
                 .description = ""
                         "Sequence: req-burst=40, wait end",
                 .rpszone_size = "10m",
@@ -193,7 +209,26 @@ static setting_ctx_s settings[] = {
                             LOG_CTX_GET());
 
                 },
-                .title = "setting__2",
+                .title = "setting-2",
+                .description = "Sequence: req-burst=40, wait 1.2, "
+                        "req-burst=20, wait end",
+                .rpszone_size = "10m",
+                .rps_limit = "10",
+                .reqburst = "burst=20",
+                .burstdelay = "delay=10"
+        },
+        {
+                .fxn = [](const setting_ctx_t *setting_ctx,
+                        utils_logs_ctx_t *const __utils_logs_ctx) -> void {
+
+                    http_get_nginx("/test-path/slow-reply", "any", nullptr, 40,
+                            LOG_CTX_GET());
+                    usleep(1200 * 1000);
+                    http_get_nginx("/test-path/slow-reply", "any", nullptr, 20,
+                            LOG_CTX_GET());
+
+                },
+                .title = "setting-2-delayed1sec",
                 .description = "Sequence: req-burst=40, wait 1.2, "
                         "req-burst=20, wait end",
                 .rpszone_size = "10m",
@@ -212,7 +247,26 @@ static setting_ctx_s settings[] = {
                             LOG_CTX_GET());
 
                 },
-                .title = "setting__3",
+                .title = "setting-3",
+                .description = "Sequence: req-burst=40, wait 0.7, "
+                        "req-burst=20, wait end",
+                .rpszone_size = "10m",
+                .rps_limit = "10",
+                .reqburst = "burst=20",
+                .burstdelay = "delay=10"
+        },
+        {
+                .fxn = [](const setting_ctx_t *setting_ctx,
+                        utils_logs_ctx_t *const __utils_logs_ctx) -> void {
+
+                    http_get_nginx("/test-path/slow-reply", "any", nullptr, 40,
+                            LOG_CTX_GET());
+                    usleep(700 * 1000);
+                    http_get_nginx("/test-path/slow-reply", "any", nullptr, 20,
+                            LOG_CTX_GET());
+
+                },
+                .title = "setting-3-delayed1sec",
                 .description = "Sequence: req-burst=40, wait 0.7, "
                         "req-burst=20, wait end",
                 .rpszone_size = "10m",
@@ -225,13 +279,13 @@ static setting_ctx_s settings[] = {
                         utils_logs_ctx_t *const __utils_logs_ctx) -> void {
 
                     for (int i = 0; i < 40 ; i++) {
-                        http_get_nginx("/test-path/any", "any", nullptr, 1,
+                        http_get_nginx("/test-path/myfile", "any", nullptr, 1,
                                 LOG_CTX_GET());
                         usleep(25 * 1000);
                     }
 
                 },
-                .title = "setting__4",
+                .title = "setting-4",
                 .description = "Sequence: loop 40 iterations ( "
                         "req-burst=1, wait 0.025 ), wait end",
                 .rpszone_size = "10m",
@@ -250,7 +304,7 @@ static setting_ctx_s settings[] = {
                     }
 
                 },
-                .title = "setting__5",
+                .title = "setting-5",
                 .description = "Sequence: loop 40 iterations ( "
                         "req-burst=4, wait 0.1 ), wait end",
                 .rpszone_size = "10m",
@@ -272,7 +326,7 @@ static setting_ctx_s settings[] = {
                             nullptr, 5, LOG_CTX_GET());
 
                 },
-                .title = "setting__6",
+                .title = "setting-6",
                 .description = "Sequence: req-burst=50, wait 1.6, "
                         "req-burst=18, wait 1.0, req-burst=5, wait end",
                 .rpszone_size = "10m",
@@ -291,7 +345,7 @@ static setting_ctx_s settings[] = {
                     }
 
                 },
-                .title = "setting__7",
+                .title = "setting-7",
                 .description = "Sequence: loop 5 iterations ( "
                         "req-burst=8, wait 1.0 ), wait end",
                 .rpszone_size = "10m",
@@ -310,7 +364,7 @@ static setting_ctx_s settings[] = {
                     }
 
                 },
-                .title = "setting__8",
+                .title = "setting-8",
                 .description = "Sequence: loop 40 iterations ( "
                         "req-burst=1, wait 0.125 ), wait end",
                 .rpszone_size = "10m",
@@ -326,7 +380,7 @@ static setting_ctx_s settings[] = {
                                                 LOG_CTX_GET());
 
                 },
-                .title = "setting__9",
+                .title = "setting-9",
                 .description = "Sequence: req-burst=100, wait end",
                 .rpszone_size = "10m",
                 .rps_limit = "10",
@@ -341,7 +395,7 @@ static setting_ctx_s settings[] = {
                                                 LOG_CTX_GET());
 
                 },
-                .title = "setting__10",
+                .title = "setting-10",
                 .description = "Sequence: req-burst=50, wait end",
                 .rpszone_size = "10m",
                 .rps_limit = "10",
@@ -359,7 +413,7 @@ static setting_ctx_s settings[] = {
                                                 LOG_CTX_GET());
 
                 },
-                .title = "setting__11",
+                .title = "setting-11",
                 .description = "Sequence: req-burst=50, wait 1.0, "
                         "req-burst=50, wait end",
                 .rpszone_size = "10m",
@@ -678,6 +732,9 @@ http {
         location /status {
             vhost_traffic_status_display;
         }
+        location = /basic_status {
+            stub_status;
+        }
     }
 }
     )";
@@ -711,6 +768,10 @@ static void configure_origin(utils_logs_ctx_t *const __utils_logs_ctx)
             server_name  Origin_1;
             location ~ /(.*) {
                 return 200 "Server 'Origin-1' received HTTP request";
+            }
+            location = /test-path/slow-reply {
+                echo_sleep 1.0;
+                echo "Server 'Origin-1' received HTTP request; response delayed";
             }
         }
     })";
